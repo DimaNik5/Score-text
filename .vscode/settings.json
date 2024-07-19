@@ -1,0 +1,11 @@
+{
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+        "display.h": "c",
+        "windows.h": "c",
+        "draw.h": "c",
+        "stdlib.h": "c",
+        "stdio.h": "c",
+        "elements.h": "c"
+    }
+}

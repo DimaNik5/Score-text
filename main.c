@@ -1,4 +1,6 @@
-// gcc -O2 -o test main.c draw.c elements.c display.c -lSDL2
+// gcc -O2 -o test main.c draw.c elements.c display.c -lSDL2 -lSDL2_image
+// gcc -O2 -mwindows -o test main.c draw.c elements.c display.c -lSDL2 -lSDL2_image
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,12 +21,16 @@ int WinMain(HINSTANCE h, HINSTANCE g, LPSTR s, int n)
 int main(int argc, char *argv[])
 #endif
 {
-    struct dat d = {height, width, 100, 100, 500};
-    struct ViewPort *v = ViewPort_query(width, height, "test", &call, &d, &keyBind);
+    struct dat *d = createDat(height, width);
+    struct ViewPort *v = ViewPort_query(width, height, "test", 1, d, &display, &keyBind, &mouseBind);
+    if(!loadFont(v)){
+        abort();
+    }
+    printf("%d %d\n", '\t', '\n');
     while(ViewPort_poll(v)){
-        if(d.y < d.h - 100) d.y++;
-        else d.y--;
     }
     destroyViewPort(v);
+    deleteDat(d);
+    deleteFont();
     return 0;
 }    

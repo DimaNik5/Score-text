@@ -3,15 +3,6 @@
 #define XOR(A, B) (A != B)
 #define TO_BOOL(X) X ? 1 : 0
 
-struct ViewPort {
-    int width, height;
-    SDL_Window *screen;
-    SDL_Renderer *ren;
-    callback fun;
-    keyBindCall keybind;
-    void* data;
-};
-
 int getCode(int code){
     short shift = TO_BOOL(GetKeyState(16) & 0x8000);
     short caps =  TO_BOOL(GetKeyState(20));
@@ -707,15 +698,19 @@ int getCode(int code){
     return NF;
 }
 
-struct ViewPort* ViewPort_query(int width, int height, const char name[32], callback fun, void *data, keyBindCall kbc){
+struct ViewPort* ViewPort_query(int width, int height, const char name[32], short alpha, void *data, callback fun, keyBindCall kbc, mouseBindCall mbc){
     struct ViewPort* vp = (struct ViewPort*)malloc(sizeof(struct ViewPort));
     if(SDL_Init(SDL_INIT_VIDEO) != 0)
+        ERR(SDL_Init, 1);
+
+    if (!(IMG_Init(IMG_INIT_PNG) & IMG_INIT_PNG))
         ERR(SDL_Init, 1);
     
     vp->width = width;
     vp->height = height;
     vp->fun = fun;
     vp->keybind = kbc;
+    vp->mousebind = mbc;
     vp->data = data;
 
     vp->screen = SDL_CreateWindow(name, SDL_WINDOWPOS_UNDEFINED, 
@@ -728,29 +723,61 @@ struct ViewPort* ViewPort_query(int width, int height, const char name[32], call
     vp->ren = SDL_CreateRenderer(vp->screen, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
     if(!vp->ren)
         ERR(SDL_CreateRenderer, 1);
+    if(SDL_SetRenderDrawBlendMode(vp->ren, alpha))
+        ERR(SDL_GetError(), 0);
 
     return vp;
 }
 
 int ViewPort_poll(struct ViewPort *v){
     SDL_Event event;
+    short type = 0;
     Uint32 start, elapsed, estimated = msec_in_sec / estfps;
     start = SDL_GetTicks();
 
     struct Surface s = {v->ren};
-
+    
     while(SDL_PollEvent(&event)){
-        if(event.type == SDL_QUIT)
+        if(!type) type = 1;
+        switch (event.type)
+        {
+        case SDL_QUIT:
             return 0;
-        if(v->keybind && (event.type == SDL_KEYDOWN))
-            v->keybind(&s, getCode(event.key.keysym.sym), v->data);
-        //if(v->keybind && (event.type == SDL_KEYUP))
-            //v->keybind(&s, event.key.keysym.sym, 0, v->data);
+
+        case SDL_KEYDOWN:
+            if(v->keybind)
+                v->keybind(&s, getCode(event.key.keysym.sym), v->data);
+            break;
+
+        case SDL_MOUSEMOTION:
+            v->mousebind(&s, MOTION, event.motion.x, event.motion.y, v->data);
+            break;
+        case SDL_MOUSEWHEEL:
+            v->mousebind(&s, WHEEL, event.wheel.x, event.wheel.y, v->data);
+            break;
+
+        case SDL_MOUSEBUTTONDOWN:
+            type = event.button.button == SDL_BUTTON_LEFT? LEFTDOWN : event.button.button == SDL_BUTTON_RIGHT? RIGHTDOWN : WHEELDOWN;
+            v->mousebind(&s, type, event.button.x, event.button.y, v->data);
+            break;
+        case SDL_MOUSEBUTTONUP:
+            type = event.button.button == SDL_BUTTON_LEFT? LEFTUP : event.button.button == SDL_BUTTON_RIGHT? RIGHTUP : WHEELUP;
+            v->mousebind(&s, type, event.button.x, event.button.y, v->data);
+            break;
+        
+        case 8192: // изменение размеров окна
+            SDL_GetWindowSize(v->screen, &v->width, &v->height);
+            break;
+        default:
+            break;
+        }
     }
-    SDL_SetRenderDrawColor(v->ren, 0xff, 0xff, 0xff, 0xff);
-    SDL_RenderClear(v->ren);
-    v->fun(&s, v->data);
-    SDL_RenderPresent(v->ren);
+    if(type){
+        SDL_SetRenderDrawColor(v->ren, 0xff, 0xff, 0xff, 0xff);
+        SDL_RenderClear(v->ren);
+        v->fun(&s, v->data);
+        SDL_RenderPresent(v->ren);
+    }
 
     elapsed = SDL_GetTicks() - start;
     if(elapsed < estimated)
