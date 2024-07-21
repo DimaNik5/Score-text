@@ -22,15 +22,13 @@ int main(int argc, char *argv[])
 #endif
 {
     struct dat *d = createDat(height, width);
-    struct ViewPort *v = ViewPort_query(width, height, "test", 1, d, &display, &keyBind, &mouseBind);
-    if(!loadFont(v)){
+    struct ViewPort *v = ViewPort_query(width, height, "test", 1, d, display, &keyBind, &mouseBind);
+    if(!loadFont(v, d, L"bitfont.png")){
         abort();
     }
-    printf("%d %d\n", '\t', '\n');
     while(ViewPort_poll(v)){
     }
     destroyViewPort(v);
     deleteDat(d);
-    deleteFont();
     return 0;
 }    

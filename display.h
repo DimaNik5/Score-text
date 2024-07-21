@@ -10,6 +10,7 @@ struct dat{
     struct mouse *mouse;
     wchar_t text[128];
     short l;
+    Simbol* s;
 };
 
 struct mouse{

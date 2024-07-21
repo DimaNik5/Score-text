@@ -13,32 +13,28 @@ struct dat* createDat(int h, int w){
     return d;
 }
 
+short loadFont(struct ViewPort* v, struct dat* d, wchar_t *name){
+    d->s = createFont(v, RGBA(0xf1, 0, 0xf1, 0xff), name);
+}
+
 void deleteDat(struct dat *d){
+    if(!d) return;
+    if(d->s) deleteFont(d->s);
     free(d->mouse);
     free(d);
 }
 
 void display(struct Surface *sf, void *data){
     struct dat *d = (struct dat*)(data);
-    /*if(d->mouse->leftPressed){
-        //printf("%d %d\n", d->mouse->x, d->mouse->y);
-        setColor(sf, RGBA(0, 0, 0, 255));
-        putPix(sf, d->mouse->x, d->mouse->y);
-        putPix(sf, d->mouse->x+1, d->mouse->y);
-        putPix(sf, d->mouse->x, d->mouse->y+1);
-        putPix(sf, d->mouse->x+1, d->mouse->y+1);
-    }
-    double step = (d->h - 2 * d->y)/d->l;
-    double offset = step;*/
-    
-    setColor(sf, RGBA(0, 0, 0, 255));
+        
+    setColor(sf, RGBA(0,0, 0, 255));
     for(int i = 0; i < 640; i++){
         for(int j = 0; j < 480; j++){
             putPix(sf, i, j);
         }
     }
     
-    lineText(sf, 1, 1, d->text);
+    lineText(sf, d->s, 1, 1, d->text);
 }
 
 void keyBind(struct Surface* sf, int code, void *data){
