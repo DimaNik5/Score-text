@@ -2,23 +2,24 @@
 
 #include <stdio.h>
 
-#include "elements.h"
+#include "drawTools.h"
 #include "draw.h"
 
 struct dat{
     int h, w;
     struct mouse *mouse;
-    wchar_t text[128];
-    short l;
-    Simbol* s;
+    EditText *etext;
+    Simbol *s;
 };
 
 struct mouse{
     int x, y;
-    short leftPressed;
+    char leftPressed;
 };
 
 struct dat* createDat(int h, int w);
+
+char loadFont(struct ViewPort* v, struct dat* d, wchar_t *name);
 
 void deleteDat(struct dat *d);
 

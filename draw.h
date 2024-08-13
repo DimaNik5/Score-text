@@ -30,7 +30,7 @@ enum mouseType{
     WHEELUP
 };
 
-static const int estfps = 40;
+static const int estfps = 30;
 static const int msec_in_sec = 1000;
 
 typedef void (*callback)(struct Surface *sf, void *data);

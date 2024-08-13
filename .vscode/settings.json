@@ -6,6 +6,7 @@
         "draw.h": "c",
         "stdlib.h": "c",
         "stdio.h": "c",
-        "elements.h": "c"
+        "elements.h": "c",
+        "wchar.h": "c"
     }
 }
