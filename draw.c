@@ -767,6 +767,9 @@ int ViewPort_poll(struct ViewPort *v){
         
         case 8192: // изменение размеров окна
             SDL_GetWindowSize(v->screen, &v->width, &v->height);
+            int *t = (int*)v->data;
+            t[0] = v->height;
+            t[1] = v->width;
             break;
         default:
             break;

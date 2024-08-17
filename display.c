@@ -1,10 +1,7 @@
 #include "display.h"
 
+// Проверка на нахождение точки внутри прямоугольника
 #define COLISION(RECT, X, Y) (RECT->x <= X && RECT->y <= Y && RECT->x + RECT->w >= X && RECT->y + RECT->h >= Y)
-
-void fun(void* v){
-    printf("work\n");
-}
 
 struct dat* createDat(int h, int w){
     struct dat *d = (struct dat*)malloc(sizeof(struct dat));
@@ -16,9 +13,9 @@ struct dat* createDat(int h, int w){
     d->mouse->y = 0;
     d->etext = (EditText*)malloc(sizeof(EditText));
     d->etext->x = 10;
-    d->etext->y = 10;
-    d->etext->w = 400;
-    d->etext->h = 400;
+    d->etext->y = 30;
+    d->etext->w = w - d->etext->x;
+    d->etext->h = h - d->etext->y;
     d->etext->wscroll = 20;
     d->etext->pos = 0;
     d->etext->posSelect = -1;
@@ -33,7 +30,7 @@ struct dat* createDat(int h, int w){
 }
 
 char loadFont(struct ViewPort* v, struct dat* d, wchar_t *name){
-    d->s = createFont(v, RGBA(0xd0, 0xd0, 0xd0, 0xff), name, 1);
+    d->s = createFont(v, RGBA(0x00, 0x00, 0x00, 0xff), name);
     return d->s ? 1 : 0;
 }
 
@@ -46,15 +43,17 @@ void deleteDat(struct dat *d){
 
 void display(struct Surface *sf, void *data){
     struct dat *d = (struct dat*)(data);
-
-    setColor(sf, RGBA(0,0, 0, 255));
-    for(int i = 0; i < 640; i++){
-        for(int j = 0; j < 480; j++){
-            putPix(sf, i, j);
-        }
+    if(d->h != d->etext->h + d->etext->y || d->w != d->etext->w + d->etext->x){
+        d->etext->h = d->h - d->etext->y;
+        d->etext->w = d->w - d->etext->x;
     }
+
+    setColor(sf, RGBA(250, 250, 250, 255));
+    putRect(sf, 0, 0, d->w, d->h);
+
     drawEditText(sf, d->s, d->etext);
 
+    drawTopTools(sf, d->w, 30);
 
 }
 
@@ -106,11 +105,16 @@ void mouseBind(struct Surface *sf, enum mouseType type, int x, int y, void *data
         d->mouse->x = x;
         d->mouse->y = y;
         if(COLISION(d->etext, x, y) && d->mouse->leftPressed){
-            if(d->etext->posSelect < 0){
-                d->etext->posSelect = d->etext->pos;
+            if(d->etext->w - d->etext->wscroll > x){
+                if(d->etext->posSelect < 0){
+                    d->etext->posSelect = d->etext->pos;
+                }
+                else{
+                    setCursorByMouse(d->s->w, d->s->h, d->etext, x, y);
+                }
             }
             else{
-                setCursorByMouse(d->s->w, d->s->h, d->etext, x, y);
+
             }
         }
         break;
@@ -122,8 +126,13 @@ void mouseBind(struct Surface *sf, enum mouseType type, int x, int y, void *data
     case LEFTDOWN:{
         d->mouse->leftPressed = 1;
         if(COLISION(d->etext, x, y)) {
-            if(d->etext->posSelect > -1) d->etext->posSelect = -1;
-            setCursorByMouse(d->s->w, d->s->h, d->etext, x, y);
+            if(d->etext->w - d->etext->wscroll > x){
+                if(d->etext->posSelect > -1) d->etext->posSelect = -1;
+                setCursorByMouse(d->s->w, d->s->h, d->etext, x, y);
+            }
+            else{
+
+            }
         }
         break;
     }

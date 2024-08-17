@@ -1,5 +1,17 @@
-// gcc -O2 -o test main.c draw.c drawTools.c display.c -lSDL2 -lSDL2_image
-// gcc -O2 -mwindows -o test main.c draw.c drawTools.c display.c -lSDL2 -lSDL2_image
+/*
+*   Программа - текстовый редактор.
+*   Написана на языке "C" с использованием Simple DirectMedia Layer (SDL) версии 2.0 для создания оконного приложения.
+*   Проект создан 13 июля 2024 года.
+*   Автор: Никифоров Дмитрий.
+*   Последние изменения: 17.08.2024.
+*
+*
+*   Для компиляции через gcc с терминалом:
+*   gcc -O2 -o test main.c draw.c drawTools.c display.c -lSDL2 -lSDL2_image
+*
+*   Без терминала:
+*   gcc -O2 -mwindows -o test main.c draw.c drawTools.c display.c -lSDL2 -lSDL2_image
+*/
 
 
 #include <stdio.h>

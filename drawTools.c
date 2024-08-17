@@ -1,10 +1,12 @@
 #include "drawTools.h"
 
+// Извлекает из кода выбранный цвет
 #define RED(C) (C >> 16) & 0xff
 #define GREEN(C) (C >> 8) & 0xff
 #define BLUE(C) (C & 0xff)
 #define ALPHA(C) (C >> 24) & 0xff
 
+// Задает выбранному цвету положение в коде
 #define sRED(C) (C << 16)
 #define sGREEN(C) (C << 8)
 #define sBLUE(C) C
@@ -12,7 +14,10 @@
 
 #define MAX(x, y) (((x) > (y)) ? (x) : (y))
 #define MIN(x, y) (((x) < (y)) ? (x) : (y))
+
+// Получает символ из структуры текста
 #define getSimbol(TEXT, i) *(TEXT->first + i)
+// Проверяет, выделен ли данный символ
 #define SELECTED(I, S, C) (S > -1 && I >= MIN(S, C) && I < MAX(S, C))
 
 
@@ -76,17 +81,18 @@ Uint32 RGB(Uint8 r, Uint8 g, Uint8 b){
     return (sRED(r) | sGREEN(g) | sBLUE(b));
 }
 
-Simbol* createFont(struct ViewPort* v, Uint32 color, wchar_t *name, Uint8 select){
-    int pitch, spitch, w = 272, h = 504;
+Simbol* createFont(struct ViewPort* v, Uint32 color, wchar_t *name){
+    int pitch, w = 272, h = 504;
     Simbol *simbol = (Simbol*)malloc(sizeof(Simbol));
     simbol->sh = 36;
     simbol->sw = 17;
     simbol->h = 36;
     simbol->w = 17;
+    simbol->color = color;
     simbol->texture = SDL_CreateTexture(v->ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
     SDL_SetTextureBlendMode(simbol->texture, SDL_BLENDMODE_BLEND);
     if(!simbol->texture) return NULL;
-    Uint32 *pixels, *spixels;
+    Uint32 *pixels;
 
     if(SDL_LockTexture(simbol->texture, NULL, &pixels, &pitch)){
         return NULL;
@@ -94,19 +100,6 @@ Simbol* createFont(struct ViewPort* v, Uint32 color, wchar_t *name, Uint8 select
     if(SDL_RenderReadPixels(v->ren, NULL, SDL_PIXELFORMAT_ARGB8888, pixels, pitch)){
         return NULL;
     }
-    
-    if(select){
-        simbol->selectTexture = SDL_CreateTexture(v->ren, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, w, h);
-        if(!simbol->selectTexture) return NULL;
-        SDL_SetTextureBlendMode(simbol->selectTexture, SDL_BLENDMODE_BLEND);
-        if(SDL_LockTexture(simbol->selectTexture, NULL, &spixels, &spitch)){
-            return NULL;
-        }
-        if(SDL_RenderReadPixels(v->ren, NULL, SDL_PIXELFORMAT_ARGB8888, spixels, spitch)){
-            return NULL;
-        }
-    }
-    else simbol->selectTexture = NULL;
 
     double alphaColor = (ALPHA(color)) / 0xff;
 
@@ -116,24 +109,19 @@ Simbol* createFont(struct ViewPort* v, Uint32 color, wchar_t *name, Uint8 select
 
     Uint32 from_pixel = RGB(20, 20, 20);
     Uint32 to_pixel   = RGBA(0, 0, 0, 0);
-    Uint32 sto_pixel  = RGBA(20, 20, 255, 200);
     
     for (int i = 0; i < w * h; i++) {
         if (ptr[i*psize] <= RED(from_pixel) && ptr[i*psize + 1] <= GREEN(from_pixel) && ptr[i*psize + 2] <= BLUE(from_pixel)) {
             pixels[i] = to_pixel;
-            if(select) spixels[i] = sto_pixel;
         }
         else if(ptr[i*psize] <= 245 && ptr[i*psize + 1] <= 245 && ptr[i*psize + 2] <= 245){
             pixels[i] = ((color & 0xffffff) | sALPHA((int)((ptr[i*psize] + ptr[i*psize + 1] + ptr[i*psize + 2])/3 * alphaColor)));
-            if(select) spixels[i] = pixels[i];
         }
         else{
             pixels[i] = color;
-            if(select) spixels[i] = pixels[i];
         }
     }
     SDL_UnlockTexture(simbol->texture);
-    if(select) SDL_UnlockTexture(simbol->selectTexture);
     SDL_FreeSurface(surface);
     return simbol;
 }
@@ -160,7 +148,7 @@ void lineText(struct Surface* sf, Simbol *simbol, int x, int y, wchar_t *text){
 void addLineCursor(int w, EditText *t, Uint8 down){
     t->moveCur = 1;
     int placeX = t->x;
-    int i = 0, sbefor = 0, sdown = -1, s = 0;
+    int i = 0, sbefor = 0, sdown = -1, s = 0, stoent = -1;
     while (getSimbol(t->text, i))
     {
         if(sdown == s){
@@ -179,13 +167,15 @@ void addLineCursor(int w, EditText *t, Uint8 down){
                 return;
             }
         }
-        if(!havePlace(placeX - t->x, t->w - t->wscroll, w, t->text->first + i)){
+        if(stoent == -1) stoent = havePlace(placeX - t->x, t->w - t->wscroll, w, t->text->first + i);
+        if(stoent-- == 0){
             if(down == 3){
                 t->pos += sbefor - sdown + s;
                 return;
             }
             if(down == 2) down = 3;
             placeX = t->x;
+            stoent = havePlace(placeX - t->x, t->w - t->wscroll, w, t->text->first + i) - ((t->text->first + i + 1) ? 1 : 0);
             sbefor = s;
             s = 0;
         }
@@ -199,6 +189,7 @@ void addLineCursor(int w, EditText *t, Uint8 down){
             placeX = t->x;
             sbefor = s + 1;
             s = 0;
+            stoent = -1;
             i++;
             continue;
         }
@@ -228,7 +219,7 @@ void addLineCursor(int w, EditText *t, Uint8 down){
 void setCursorByMouse(int w, int h, EditText *t, int x, int y){
     
     int placeX = t->x;
-    int i = 0, l = 0, s = 0;
+    int i = 0, l = 0, s = 0, stoent = -1;
     while (getSimbol(t->text, i))
     {
         if((l * h + t->y <= y + t->toffset) && ((l + 1) * h + t->y >= y + t->toffset)){
@@ -237,14 +228,15 @@ void setCursorByMouse(int w, int h, EditText *t, int x, int y){
                 return;
             }
         }
-        if(!havePlace(placeX - t->x, t->w - t->wscroll, w, t->text->first + i)){
+        if(stoent == -1) stoent = havePlace(placeX - t->x, t->w - t->wscroll, w, t->text->first + i);
+        if(stoent-- == 0){
             if((l * h + t->y <= y + t->toffset) && ((l + 1) * h + t->y >= y + t->toffset)){
                 t->pos = i;
                 return;
             }
             l++;
-            //if(l * h + h > t->h) return;
             placeX = t->x;
+            stoent = havePlace(placeX - t->x, t->w - t->wscroll, w, t->text->first + i) - ((t->text->first + i + 1) ? 1 : 0);
             s = 0;
         }
 
@@ -254,8 +246,8 @@ void setCursorByMouse(int w, int h, EditText *t, int x, int y){
                 return;
             }
             l++;
-            //if(l * h + h > t->h) return;
             placeX = t->x;
+            stoent = -1;
             s = 0;
             i++;
             continue;
@@ -284,7 +276,7 @@ void addPosCursor(EditText *t, Uint8 right){
 
 void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
     
-    int i = 0, s = 0, l = 0, offset = t->toffset;
+    int i = 0, s = 0, l = 0, offset = t->toffset, stoent = -1;
     SDL_Rect place, simb;
     place.x = t->x;
     place.y = t->y - offset;
@@ -302,16 +294,18 @@ void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
                 if(t->toffset > l * simbol->h) t->toffset = l * simbol->h;
                 else if(t->toffset + t->h < l * simbol->h + simbol->h) t->toffset = l * simbol->h + simbol->h - t->h;
             }
-            setColor(sf, 0xffffffff);
+            setColor(sf, simbol->color);
             SDL_RenderDrawLine(sf->r, place.x, place.y, place.x, place.y + place.h);
         }
-        if(!havePlace(place.x - t->x, t->w - t->wscroll, simbol->w, t->text->first + i)){
+        if(stoent == -1) stoent = havePlace(place.x - t->x, t->w - t->wscroll , simbol->w, t->text->first + i);
+        if(stoent-- == 0){
             l++;
             if(offset <= simbol->h * l) visable = 1;
             if(l * simbol->h > t->h + offset) visable = 0;
             if(visable) someVis = 1;
             place.y += simbol->h;
             place.x = t->x;
+            stoent = havePlace(place.x - t->x, t->w - t->wscroll, simbol->w, t->text->first + i) - ((t->text->first + i + 1) ? 1 : 0);
             s = 0;
         }
 
@@ -323,6 +317,7 @@ void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
             place.y += simbol->h;
             place.x = t->x;
             s = 0;
+            stoent = -1;
             i++;
             continue;
         }
@@ -330,7 +325,13 @@ void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
         simb.x = ((getSimbol(t->text, i) - 32) & 0xf) * simbol->sw;
         simb.y = ((getSimbol(t->text, i) - 32) / 0x10) * simbol->sh;
 
-        if(visable) SDL_RenderCopy(sf->r, SELECTED(i, t->posSelect, t->pos)? simbol->selectTexture : simbol->texture, &simb, &place);
+        if(visable){
+            if(SELECTED(i, t->posSelect, t->pos)){
+                setColor(sf, RGBA(66, 170, 255, 180));
+                putRect(sf, place.x, place.y, place.w, place.h);
+            }
+            SDL_RenderCopy(sf->r, simbol->texture, &simb, &place);
+        }
         place.x += simbol->w;
         s++;
         i++;
@@ -341,7 +342,7 @@ void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
             if(t->toffset > l * simbol->h) t->toffset = l * simbol->h;
             else if(t->toffset + t->h < l * simbol->h + simbol->h) t->toffset = l * simbol->h + simbol->h - t->h;
         }
-        setColor(sf, 0xffffffff);
+        setColor(sf, simbol->color);
         if(visable) SDL_RenderDrawLine(sf->r, place.x, place.y, place.x, place.y + place.h);
     }
     if(!someVis){
@@ -352,9 +353,9 @@ void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
         if(t->toffset < 0) t->toffset = 0;
     }
 
-    setColor(sf, 0xff101010);
+    setColor(sf, 0xfff0f0f0);
     putRect(sf, t->x + t->w - t->wscroll, t->y, t->wscroll, t->h);
-    setColor(sf, 0xff2f2f2f);
+    setColor(sf, 0xffe0e0e0);
     if(l * simbol->h <= t->h){
         putRect(sf, t->x + t->w - t->wscroll + 1, t->y + 1, t->wscroll - 2, t->h - 2);
     }else{
@@ -363,16 +364,23 @@ void drawEditText(struct Surface* sf, Simbol *simbol, EditText *t){
     
 }
 
-Uint32 havePlace(int start, int width, int ws, wchar_t *t){
-    if(start == 0) return 1;
+int havePlace(int start, int width, int ws, wchar_t *t){
+    //if(start == 0) return 1;
     width -= start;
     int i = 0;
     while(t[i] && t[i] != 9 && t[i] != 10 && t[i] != 32){
         width -= ws;
-        if(width < 0) return 0;
+        if(width <= 0) {
+            if(start){
+                return 0;
+            }
+            else {
+                return i;
+            }
+        }
         i++;
     }
-    return 1;
+    return -1;
 }
 
 int setHeightLineText(Simbol *simbol, int h){
@@ -384,4 +392,9 @@ int setHeightLineText(Simbol *simbol, int h){
 void deleteFont(Simbol *simbol){
     free(simbol->texture);
     free(simbol);
+}
+
+void drawTopTools(struct Surface* sf, int w, int h){
+    setColor(sf, 0xfff0f0f0);
+    putRect(sf, 0, 0, w, h);
 }
